@@ -77,7 +77,6 @@ async function seedDatabase() {
       tax: (10000 + (index * 1000)) * 0.0825,
       total: (10000 + (index * 1000)) * 1.0825,
       status: index < 2 ? 'sent' : 'draft',
-      notes: 'Standard roofing estimate with premium materials',
     }))
 
     const { data: estimates, error: estimatesError } = await supabase

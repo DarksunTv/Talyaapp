@@ -35,21 +35,21 @@ export const generateCustomers = () => [
 export const projectStatuses = ['lead', 'inspection', 'proposal', 'contract', 'production', 'completed']
 
 export const generateProjects = (customers: any[]) => [
-  { name: 'Roof Replacement - Main St', customer_id: customers[0].id, address: customers[0].address, status: 'completed', description: 'Complete roof replacement with architectural shingles' },
-  { name: 'Storm Damage Repair - Oak Ave', customer_id: customers[1].id, address: customers[1].address, status: 'production', description: 'Repair storm damage to north side of roof' },
-  { name: 'New Construction - Pine Rd', customer_id: customers[2].id, address: customers[2].address, status: 'contract', description: 'New roof installation for new construction' },
-  { name: 'Leak Repair - Elm St', customer_id: customers[3].id, address: customers[3].address, status: 'proposal', description: 'Locate and repair roof leak in master bedroom' },
-  { name: 'Roof Inspection - Maple Dr', customer_id: customers[4].id, address: customers[4].address, status: 'inspection', description: 'Annual roof inspection and maintenance' },
-  { name: 'Shingle Replacement - Cedar Ln', customer_id: customers[5].id, address: customers[5].address, status: 'lead', description: 'Replace damaged shingles from hail storm' },
-  { name: 'Gutter Installation - Birch Ct', customer_id: customers[6].id, address: customers[6].address, status: 'completed', description: 'Install new seamless gutters' },
-  { name: 'Roof Coating - Spruce Way', customer_id: customers[7].id, address: customers[7].address, status: 'production', description: 'Apply reflective roof coating' },
-  { name: 'Skylight Installation - Willow Blvd', customer_id: customers[8].id, address: customers[8].address, status: 'proposal', description: 'Install two skylights in living room' },
-  { name: 'Emergency Repair - Ash Pkwy', customer_id: customers[9].id, address: customers[9].address, status: 'inspection', description: 'Emergency repair after tree damage' },
-  { name: 'Re-roofing - Main St #2', customer_id: customers[0].id, address: customers[0].address, status: 'lead', description: 'Second property re-roofing project' },
-  { name: 'Flat Roof Repair - Oak Ave #2', customer_id: customers[1].id, address: customers[1].address, status: 'contract', description: 'Commercial flat roof repair' },
-  { name: 'Ventilation Upgrade - Pine Rd', customer_id: customers[2].id, address: customers[2].address, status: 'completed', description: 'Upgrade attic ventilation system' },
-  { name: 'Chimney Flashing - Elm St', customer_id: customers[3].id, address: customers[3].address, status: 'production', description: 'Replace chimney flashing' },
-  { name: 'Solar Panel Prep - Maple Dr', customer_id: customers[4].id, address: customers[4].address, status: 'proposal', description: 'Prepare roof for solar panel installation' },
+  { name: 'Roof Replacement - Main St', customer_id: customers[0].id, address: customers[0].address, status: 'completed' },
+  { name: 'Storm Damage Repair - Oak Ave', customer_id: customers[1].id, address: customers[1].address, status: 'production' },
+  { name: 'New Construction - Pine Rd', customer_id: customers[2].id, address: customers[2].address, status: 'contract' },
+  { name: 'Leak Repair - Elm St', customer_id: customers[3].id, address: customers[3].address, status: 'proposal' },
+  { name: 'Roof Inspection - Maple Dr', customer_id: customers[4].id, address: customers[4].address, status: 'inspection' },
+  { name: 'Shingle Replacement - Cedar Ln', customer_id: customers[5].id, address: customers[5].address, status: 'lead' },
+  { name: 'Gutter Installation - Birch Ct', customer_id: customers[6].id, address: customers[6].address, status: 'completed' },
+  { name: 'Roof Coating - Spruce Way', customer_id: customers[7].id, address: customers[7].address, status: 'production' },
+  { name: 'Skylight Installation - Willow Blvd', customer_id: customers[8].id, address: customers[8].address, status: 'proposal' },
+  { name: 'Emergency Repair - Ash Pkwy', customer_id: customers[9].id, address: customers[9].address, status: 'inspection' },
+  { name: 'Re-roofing - Main St #2', customer_id: customers[0].id, address: customers[0].address, status: 'lead' },
+  { name: 'Flat Roof Repair - Oak Ave #2', customer_id: customers[1].id, address: customers[1].address, status: 'contract' },
+  { name: 'Ventilation Upgrade - Pine Rd', customer_id: customers[2].id, address: customers[2].address, status: 'completed' },
+  { name: 'Chimney Flashing - Elm St', customer_id: customers[3].id, address: customers[3].address, status: 'production' },
+  { name: 'Solar Panel Prep - Maple Dr', customer_id: customers[4].id, address: customers[4].address, status: 'proposal' },
 ]
 
 export const generateEstimateLineItems = () => [

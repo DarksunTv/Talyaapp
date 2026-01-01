@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx scripts/seed-data.ts",
+    "seed:simple": "tsx scripts/seed-simple.ts",
     "check-env": "tsx scripts/check-env.ts",
     "test:db": "tsx scripts/test-db.ts"
   },
