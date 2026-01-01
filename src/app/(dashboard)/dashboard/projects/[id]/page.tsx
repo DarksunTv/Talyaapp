@@ -1,274 +1,280 @@
+'use client'
+
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { ProjectHeader } from '@/components/projects/project-header'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, Shield, DollarSign, Camera, FileText, Ruler, ClipboardList, Wrench, Receipt, FolderOpen } from 'lucide-react'
-import Link from 'next/link'
+import { FileText, FileSignature, Image as ImageIcon, MessageSquare, Ruler, Activity, Plus } from 'lucide-react'
+import { notFound } from 'next/navigation'
 
-interface ProjectDetailPageProps {
+interface PageProps {
   params: Promise<{ id: string }>
 }
 
-const statusConfig = {
-  lead: { label: 'Lead', color: 'bg-gray-500' },
-  inspection: { label: 'Inspection', color: 'bg-blue-500' },
-  proposal: { label: 'Proposal', color: 'bg-yellow-500' },
-  contract: { label: 'Contract', color: 'bg-orange-500' },
-  production: { label: 'Production', color: 'bg-purple-500' },
-  completed: { label: 'Completed', color: 'bg-green-500' },
-}
-
-export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
+export default async function ProjectDetailPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: project, error } = await supabase
+  // Fetch project with related data
+  const { data: project } = await supabase
     .from('crm_projects')
     .select(`
       *,
-      customer:crm_customers(*)
+      customer:crm_customers(id, name, email, phone),
+      estimates:crm_estimates(id, total, status, created_at),
+      contracts:crm_contracts(id, status, created_at),
+      photos:crm_photos(id, url, category),
+      measurements:crm_measurements(id, area, created_at)
     `)
     .eq('id', id)
     .single()
 
-  if (error || !project) {
+  if (!project) {
     notFound()
   }
 
-  // Get photos
-  const { data: photos } = await supabase
-    .from('crm_photos')
-    .select('*')
-    .eq('project_id', id)
-    .order('created_at', { ascending: false })
-    .limit(6)
-
-  const status = statusConfig[project.status as keyof typeof statusConfig]
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/projects">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{project.name}</h1>
-              <span className={`px-2 py-1 rounded-full text-xs text-white ${status?.color}`}>
-                {status?.label}
-              </span>
-            </div>
-            <p className="text-muted-foreground">{project.customer?.name}</p>
-          </div>
-        </div>
-        <Link href={`/dashboard/projects/${id}/edit`}>
-          <Button variant="outline">
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-        </Link>
-      </div>
+      {/* Project Header */}
+      <ProjectHeader project={project} />
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-9">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="photos">Photos</TabsTrigger>
-          <TabsTrigger value="measurements">Measurements</TabsTrigger>
-          <TabsTrigger value="estimates">Estimates</TabsTrigger>
-          <TabsTrigger value="contracts">Contracts</TabsTrigger>
-          <TabsTrigger value="materials">Materials</TabsTrigger>
-          <TabsTrigger value="workorders">Work Orders</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-        </TabsList>
+      <ProjectTabs project={project} />
+    </div>
+  )
+}
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Project Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Address</p>
-                    <p className="font-medium">{project.address}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Created</p>
-                    <p className="font-medium">
-                      {new Date(project.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+function ProjectTabs({ project }: { project: any }) {
+  const [activeTab, setActiveTab] = useState('estimates')
 
-            {/* Customer Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Link href={`/dashboard/customers/${project.customer?.id}`} className="font-medium text-primary hover:underline">
-                  {project.customer?.name}
-                </Link>
-                {project.customer?.phone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <a href={`tel:${project.customer.phone}`} className="hover:underline">
-                      {project.customer.phone}
-                    </a>
-                  </div>
-                )}
-                {project.customer?.email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
-                    <a href={`mailto:${project.customer.email}`} className="hover:underline">
-                      {project.customer.email}
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+  const estimates = project.estimates || []
+  const contracts = project.contracts || []
+  const photos = project.photos || []
+  const measurements = project.measurements || []
 
-            {/* Insurance Info */}
-            {project.insurance_claim_number && (
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-blue-500" />
-                    Insurance Claim
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Claim Number</p>
-                      <p className="font-medium">{project.insurance_claim_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Insurance Company</p>
-                      <p className="font-medium">{project.insurance_company || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Adjuster</p>
-                      <p className="font-medium">{project.adjuster_name || 'Not assigned'}</p>
-                      {project.adjuster_phone && (
-                        <a href={`tel:${project.adjuster_phone}`} className="text-sm text-primary hover:underline">
-                          {project.adjuster_phone}
-                        </a>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Deductible</p>
-                      <p className="font-medium">
-                        {project.deductible ? `$${project.deductible.toLocaleString()}` : 'Not set'}
-                      </p>
-                    </div>
-                  </div>
-                  {project.adjuster_meeting && (
-                    <div className="mt-4 p-3 bg-muted rounded-lg">
-                      <p className="text-sm font-medium">Adjuster Meeting</p>
-                      <p className="text-muted-foreground">
-                        {new Date(project.adjuster_meeting).toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+  return (
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <TabsList className="grid w-full grid-cols-6">
+        <TabsTrigger value="estimates" active={activeTab === 'estimates'}>
+          <FileText className="h-4 w-4 mr-2" />
+          Estimates ({estimates.length})
+        </TabsTrigger>
+        <TabsTrigger value="contracts" active={activeTab === 'contracts'}>
+          <FileSignature className="h-4 w-4 mr-2" />
+          Contracts ({contracts.length})
+        </TabsTrigger>
+        <TabsTrigger value="photos" active={activeTab === 'photos'}>
+          <ImageIcon className="h-4 w-4 mr-2" />
+          Photos ({photos.length})
+        </TabsTrigger>
+        <TabsTrigger value="chat" active={activeTab === 'chat'}>
+          <MessageSquare className="h-4 w-4 mr-2" />
+          AI Chat
+        </TabsTrigger>
+        <TabsTrigger value="measurements" active={activeTab === 'measurements'}>
+          <Ruler className="h-4 w-4 mr-2" />
+          Measurements
+        </TabsTrigger>
+        <TabsTrigger value="activity" active={activeTab === 'activity'}>
+          <Activity className="h-4 w-4 mr-2" />
+          Activity
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Estimates Tab */}
+      <TabsContent value="estimates">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Estimates</CardTitle>
+              <CardDescription>Manage project estimates and pricing</CardDescription>
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Estimate
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {estimates.length > 0 ? (
+              <div className="space-y-4">
+                {estimates.map((estimate: any) => (
+                  <Card key={estimate.id}>
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Estimate #{estimate.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Created {new Date(estimate.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">${estimate.total.toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground capitalize">{estimate.status}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No estimates yet</p>
+                <p className="text-sm mt-2">Create your first estimate for this project</p>
+              </div>
             )}
-          </div>
-        </TabsContent>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-        {/* Photos Tab */}
-        <TabsContent value="photos">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Photos</CardTitle>
-                <CardDescription>Project photos and documentation</CardDescription>
+      {/* Contracts Tab */}
+      <TabsContent value="contracts">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Contracts</CardTitle>
+              <CardDescription>View and manage project contracts</CardDescription>
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Generate Contract
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {contracts.length > 0 ? (
+              <div className="space-y-4">
+                {contracts.map((contract: any) => (
+                  <Card key={contract.id}>
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Contract #{contract.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Created {new Date(contract.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium capitalize">{contract.status}</p>
+                        <Button variant="outline" size="sm" className="mt-2">
+                          View Contract
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <Button>
-                <Camera className="h-4 w-4 mr-2" />
-                Upload Photos
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {photos && photos.length > 0 ? (
-                <div className="grid grid-cols-3 gap-4">
-                  {photos.map((photo) => (
-                    <div key={photo.id} className="aspect-square rounded-lg bg-muted overflow-hidden">
-                      <img
-                        src={photo.url}
-                        alt={photo.caption || 'Project photo'}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Camera className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No photos uploaded yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileSignature className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No contracts yet</p>
+                <p className="text-sm mt-2">Generate a contract from an estimate</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-        {/* Measurements Tab */}
-        <TabsContent value="measurements">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Measurements</CardTitle>
-                <CardDescription>Roof measurements and calculations</CardDescription>
+      {/* Photos Tab */}
+      <TabsContent value="photos">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Photos</CardTitle>
+              <CardDescription>Project photos and documentation</CardDescription>
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Upload Photos
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {photos.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {photos.map((photo: any) => (
+                  <div key={photo.id} className="aspect-square bg-muted rounded-lg" />
+                ))}
               </div>
-              <Button>
-                <Ruler className="h-4 w-4 mr-2" />
-                Add Measurement
-              </Button>
-            </CardHeader>
-            <CardContent>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No photos yet</p>
+                <p className="text-sm mt-2">Upload project photos to document progress</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Chat Tab */}
+      <TabsContent value="chat">
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Assistant</CardTitle>
+            <CardDescription>Ask questions about this project</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12 text-muted-foreground">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>AI Chat coming soon</p>
+              <p className="text-sm mt-2">Get project insights and recommendations</p>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Measurements Tab */}
+      <TabsContent value="measurements">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Measurements</CardTitle>
+              <CardDescription>Roof measurements and calculations</CardDescription>
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Measurement
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {measurements.length > 0 ? (
+              <div className="space-y-4">
+                {measurements.map((measurement: any) => (
+                  <Card key={measurement.id}>
+                    <CardContent className="p-4">
+                      <p className="font-medium">{measurement.area} sq ft</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(measurement.created_at).toLocaleDateString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Ruler className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No measurements yet</p>
-                <p className="text-sm">Use the DIY tool to measure the roof</p>
+                <p className="text-sm mt-2">Add roof measurements for accurate estimates</p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-        {/* Other tabs with placeholder content */}
-        {['estimates', 'contracts', 'materials', 'workorders', 'invoices', 'documents'].map((tab) => (
-          <TabsContent key={tab} value={tab}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="capitalize">{tab}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12 text-muted-foreground">
-                  <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No {tab} yet</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
+      {/* Activity Tab */}
+      <TabsContent value="activity">
+        <Card>
+          <CardHeader>
+            <CardTitle>Activity Timeline</CardTitle>
+            <CardDescription>Project history and updates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12 text-muted-foreground">
+              <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No activity yet</p>
+              <p className="text-sm mt-2">Activity will appear as you work on this project</p>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   )
 }
