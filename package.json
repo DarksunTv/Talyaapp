@@ -10,7 +10,8 @@
     "seed": "tsx scripts/seed-data.ts",
     "seed:simple": "tsx scripts/seed-simple.ts",
     "check-env": "tsx scripts/check-env.ts",
-    "test:db": "tsx scripts/test-db.ts"
+    "test:db": "tsx scripts/test-db.ts",
+    "test:integrations": "tsx scripts/test-integrations.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
