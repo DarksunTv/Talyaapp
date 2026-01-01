@@ -11,6 +11,9 @@ if (!accountSid || !authToken || !twilioPhoneNumber) {
 
 const client = accountSid && authToken ? twilio(accountSid, authToken) : null;
 
+// Export client for direct use
+export const twilioClient = client;
+
 export interface SendSMSParams {
   to: string;
   message: string;
