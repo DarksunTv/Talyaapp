@@ -1,18 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Search, Phone, Mail, MapPin } from 'lucide-react'
-import Link from 'next/link'
 import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { CustomerCard } from '@/components/customers/customer-card'
+import { Users, Search, Plus, Filter } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function CustomersPage() {
   const supabase = await createClient()
-
-  const { data: customers, error } = await supabase
+  
+  // Fetch customers (will work when data is added)
+  const { data: customers } = await supabase
     .from('crm_customers')
-    .select('*')
-    .is('deleted_at', null)
+    .select('*, projects:crm_projects(count)')
     .order('created_at', { ascending: false })
+
+  const hasCustomers = customers && customers.length > 0
 
   return (
     <div className="space-y-6">
@@ -20,80 +23,88 @@ export default async function CustomersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Customers</h1>
-          <p className="text-muted-foreground">Manage your customer database</p>
+          <p className="text-muted-foreground mt-1">
+            Manage your customer database
+          </p>
         </div>
         <Link href="/dashboard/customers/new">
           <Button>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Customer
           </Button>
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search customers..." className="pl-10" />
+      {/* Search and Filters */}
+      <Card className="p-4">
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search customers by name, email, or phone..."
+              className="pl-10"
+            />
+          </div>
+          <Button variant="outline">
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Customer Grid */}
-      {customers && customers.length > 0 ? (
+      {/* Customer List */}
+      {hasCustomers ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {customers.map((customer) => (
-            <Link key={customer.id} href={`/dashboard/customers/${customer.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{customer.name}</CardTitle>
-                  {customer.lead_source && (
-                    <CardDescription>
-                      Source: {customer.lead_source}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  {customer.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      {customer.phone}
-                    </div>
-                  )}
-                  {customer.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      {customer.email}
-                    </div>
-                  )}
-                  {customer.address && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span className="truncate">{customer.address}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
+            <CustomerCard
+              key={customer.id}
+              customer={{
+                ...customer,
+                projects_count: customer.projects?.[0]?.count || 0,
+              }}
+            />
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Plus className="h-6 w-6 text-muted-foreground" />
+        <Card className="p-12">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="rounded-full bg-muted p-6">
+                <Users className="h-12 w-12 text-muted-foreground" />
+              </div>
             </div>
-            <h3 className="text-lg font-semibold mb-2">No customers yet</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Get started by adding your first customer
-            </p>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">No customers yet</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Get started by adding your first customer. You can track their projects,
+                communications, and more.
+              </p>
+            </div>
             <Link href="/dashboard/customers/new">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Customer
+              <Button size="lg">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Customer
               </Button>
             </Link>
-          </CardContent>
+          </div>
         </Card>
+      )}
+
+      {/* Stats Footer */}
+      {hasCustomers && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div>
+            Showing {customers.length} customer{customers.length !== 1 ? 's' : ''}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" disabled>
+              Next
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

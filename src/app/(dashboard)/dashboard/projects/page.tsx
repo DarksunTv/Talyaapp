@@ -1,39 +1,32 @@
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Search, Filter, LayoutGrid, List } from 'lucide-react'
-import Link from 'next/link'
 import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-const statusConfig = {
-  lead: { label: 'Lead', color: 'bg-gray-500', textColor: 'text-gray-500' },
-  inspection: { label: 'Inspection', color: 'bg-blue-500', textColor: 'text-blue-500' },
-  proposal: { label: 'Proposal', color: 'bg-yellow-500', textColor: 'text-yellow-500' },
-  contract: { label: 'Contract', color: 'bg-orange-500', textColor: 'text-orange-500' },
-  production: { label: 'Production', color: 'bg-purple-500', textColor: 'text-purple-500' },
-  completed: { label: 'Completed', color: 'bg-green-500', textColor: 'text-green-500' },
-}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { ProjectCard } from '@/components/projects/project-card'
+import { FolderKanban, Search, Plus, LayoutGrid, List, Filter } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function ProjectsPage() {
   const supabase = await createClient()
-
+  
+  // Fetch projects with customer info
   const { data: projects } = await supabase
     .from('crm_projects')
-    .select(`
-      *,
-      customer:crm_customers(name, phone)
-    `)
-    .is('deleted_at', null)
+    .select('*, customer:crm_customers(name), photos:crm_photos(id)')
     .order('created_at', { ascending: false })
 
+  const hasProjects = projects && projects.length > 0
+
   // Group projects by status for Kanban view
-  const projectsByStatus = projects?.reduce((acc, project) => {
-    const status = project.status || 'lead'
-    if (!acc[status]) acc[status] = []
-    acc[status].push(project)
-    return acc
-  }, {} as Record<string, typeof projects>)
+  const projectsByStatus = {
+    lead: projects?.filter(p => p.status === 'lead') || [],
+    inspection: projects?.filter(p => p.status === 'inspection') || [],
+    proposal: projects?.filter(p => p.status === 'proposal') || [],
+    contract: projects?.filter(p => p.status === 'contract') || [],
+    production: projects?.filter(p => p.status === 'production') || [],
+    completed: projects?.filter(p => p.status === 'completed') || [],
+  }
 
   return (
     <div className="space-y-6">
@@ -41,124 +34,109 @@ export default async function ProjectsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Projects</h1>
-          <p className="text-muted-foreground">Manage roofing projects and jobs</p>
+          <p className="text-muted-foreground mt-1">
+            Manage roofing projects and jobs
+          </p>
         </div>
         <Link href="/dashboard/projects/new">
           <Button>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             New Project
           </Button>
         </Link>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search projects..." className="pl-10" />
-        </div>
-        <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          Filters
-        </Button>
-      </div>
-
-      {/* Tabs for view modes */}
-      <Tabs defaultValue="kanban" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="kanban" className="gap-2">
-            <LayoutGrid className="h-4 w-4" />
-            Kanban
-          </TabsTrigger>
-          <TabsTrigger value="list" className="gap-2">
-            <List className="h-4 w-4" />
-            List
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Kanban View */}
-        <TabsContent value="kanban">
-          <div className="grid grid-cols-6 gap-4 overflow-x-auto pb-4">
-            {Object.entries(statusConfig).map(([status, config]) => (
-              <div key={status} className="min-w-[280px]">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={`h-3 w-3 rounded-full ${config.color}`} />
-                  <h3 className="font-semibold">{config.label}</h3>
-                  <span className="text-muted-foreground text-sm">
-                    ({projectsByStatus?.[status]?.length || 0})
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {projectsByStatus?.[status]?.map((project: any) => (
-                    <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
-                      <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                        <CardContent className="p-4">
-                          <h4 className="font-medium mb-1">{project.name}</h4>
-                          <p className="text-sm text-muted-foreground mb-2">
-                            {project.customer?.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {project.address}
-                          </p>
-                          {project.insurance_claim_number && (
-                            <div className="mt-2 inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs rounded">
-                              Insurance
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-                  {(!projectsByStatus?.[status] || projectsByStatus[status].length === 0) && (
-                    <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-                      No projects
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+      {/* Toolbar */}
+      <Card className="p-4">
+        <div className="flex gap-4 items-center">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search projects by name, address, or customer..."
+              className="pl-10"
+            />
           </div>
-        </TabsContent>
+          <div className="flex gap-2">
+            <Button variant="outline">
+              <Filter className="mr-2 h-4 w-4" />
+              Filters
+            </Button>
+            <div className="flex border rounded-md">
+              <Button variant="ghost" size="sm" className="rounded-r-none">
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="rounded-l-none border-l">
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
 
-        {/* List View */}
-        <TabsContent value="list">
-          <Card>
-            <CardContent className="p-0">
-              <div className="divide-y">
-                {projects && projects.length > 0 ? (
-                  projects.map((project) => (
-                    <Link
-                      key={project.id}
-                      href={`/dashboard/projects/${project.id}`}
-                      className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`h-3 w-3 rounded-full ${statusConfig[project.status as keyof typeof statusConfig]?.color}`} />
-                        <div>
-                          <p className="font-medium">{project.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {project.customer?.name} • {project.address}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm capitalize">{project.status}</p>
-                        {project.insurance_claim_number && (
-                          <p className="text-xs text-blue-600">Insurance</p>
-                        )}
-                      </div>
-                    </Link>
+      {/* Kanban Board */}
+      {hasProjects ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {Object.entries(projectsByStatus).map(([status, statusProjects]) => (
+            <Card key={status} className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center justify-between">
+                  <span className="capitalize">{status}</span>
+                  <Badge variant="secondary" className="ml-2">
+                    {statusProjects.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3 pt-0">
+                {statusProjects.length > 0 ? (
+                  statusProjects.map((project) => (
+                    <ProjectCard key={project.id} project={project} />
                   ))
                 ) : (
-                  <div className="p-8 text-center text-muted-foreground">
-                    No projects yet
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    No {status} projects
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="p-12">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="rounded-full bg-muted p-6">
+                <FolderKanban className="h-12 w-12 text-muted-foreground" />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">No projects yet</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Create your first roofing project to start tracking progress, estimates,
+                and communications.
+              </p>
+            </div>
+            <Link href="/dashboard/projects/new">
+              <Button size="lg">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Your First Project
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      )}
+
+      {/* Stats */}
+      {hasProjects && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div>
+            Total: {projects.length} project{projects.length !== 1 ? 's' : ''}
+          </div>
+          <div className="flex gap-4">
+            <span>Active: {projects.filter(p => p.status !== 'completed').length}</span>
+            <span>Completed: {projectsByStatus.completed.length}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

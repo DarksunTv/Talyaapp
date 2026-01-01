@@ -8,6 +8,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  // DISABLED FOR LOCAL DEVELOPMENT
+  // TODO: Re-enable authentication for production
+  
+  /* 
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -29,6 +33,19 @@ export default async function DashboardLayout({
   if (!profile) {
     redirect('/onboarding')
   }
+  */
+
+  // Mock profile for local development
+  const profile = {
+    id: 'local-user',
+    name: 'Local User',
+    email: 'local@example.com',
+    role: 'admin',
+    company: {
+      id: 'local-company',
+      name: 'Local Company',
+    },
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
