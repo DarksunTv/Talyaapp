@@ -1,13 +1,12 @@
-// Google Gemini AI Service for Summarization
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// OpenRouter AI Service for Summarization
+// OpenRouter provides access to multiple AI models through a single API
 
-const GEMINI_API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
 
-if (!GEMINI_API_KEY) {
-  console.warn('Google Gemini API key not configured');
+if (!OPENROUTER_API_KEY) {
+  console.warn('OpenRouter API key not configured');
 }
-
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 export interface CallSummary {
   summary: string;
@@ -23,18 +22,44 @@ export interface SMSSummary {
   topics: string[];
 }
 
+async function callOpenRouter(prompt: string): Promise<string> {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error('OpenRouter API not configured');
+  }
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      'X-Title': 'TalyaCRM'
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
 export const aiSummarizer = {
   /**
    * Summarize call transcript with key insights
    */
   async summarizeCall(transcript: string): Promise<CallSummary> {
-    if (!genAI) {
-      throw new Error('Gemini API not configured');
-    }
-
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
       const prompt = `You are analyzing a phone call transcript between a roofing company representative and a customer. 
 
 Transcript:
@@ -49,8 +74,7 @@ Provide a structured analysis in JSON format with:
 
 Return ONLY valid JSON, no markdown formatting.`;
 
-      const result = await model.generateContent(prompt);
-      const response = result.response.text();
+      const response = await callOpenRouter(prompt);
       
       // Parse JSON response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -76,13 +100,7 @@ Return ONLY valid JSON, no markdown formatting.`;
    * Summarize SMS conversation thread
    */
   async summarizeSMS(messages: string[]): Promise<SMSSummary> {
-    if (!genAI) {
-      throw new Error('Gemini API not configured');
-    }
-
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
       const conversationText = messages.join('\n');
       const prompt = `Analyze this SMS conversation between a roofing company and a customer:
 
@@ -95,8 +113,7 @@ Provide a JSON response with:
 
 Return ONLY valid JSON, no markdown formatting.`;
 
-      const result = await model.generateContent(prompt);
-      const response = result.response.text();
+      const response = await callOpenRouter(prompt);
       
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -122,13 +139,11 @@ Return ONLY valid JSON, no markdown formatting.`;
     content: string;
     created_at: string;
   }>): Promise<string> {
-    if (!genAI || interactions.length === 0) {
+    if (!OPENROUTER_API_KEY || interactions.length === 0) {
       return '';
     }
 
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
       const interactionHistory = interactions.map(i => 
         `[${i.type.toUpperCase()}] ${new Date(i.created_at).toLocaleDateString()}: ${i.content}`
       ).join('\n');
@@ -140,8 +155,7 @@ ${interactionHistory}
 Focus on: customer preferences, previous concerns, project status, and communication style.
 Keep it concise and actionable.`;
 
-      const result = await model.generateContent(prompt);
-      return result.response.text().trim();
+      return await callOpenRouter(prompt);
     } catch (error) {
       console.error('Context generation error:', error);
       return '';

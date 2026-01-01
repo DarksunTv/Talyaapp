@@ -21,8 +21,8 @@ const requiredEnvVars = {
     'VAPI_PHONE_NUMBER_ID',
     'VAPI_ASSISTANT_ID'
   ],
-  'Google AI': [
-    'GEMINI_API_KEY'
+  'OpenRouter AI': [
+    'OPENROUTER_API_KEY'
   ],
   'Google Maps': [
     'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'

@@ -1,13 +1,12 @@
-// Gemini Chat Service - Context-aware conversations
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// OpenRouter AI Chat Service - Context-aware conversations
+// OpenRouter provides access to multiple AI models through a single API
 
-const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
 
-if (!apiKey) {
-  console.warn('Google Gemini API key not configured');
+if (!OPENROUTER_API_KEY) {
+  console.warn('OpenRouter API key not configured');
 }
-
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -30,44 +29,64 @@ export interface ProjectContext {
 }
 
 /**
- * Generate context-aware chat response using Gemini
+ * Generate context-aware chat response using OpenRouter
  */
 export async function generateChatResponse(
   message: string,
   projectContext: ProjectContext,
   conversationHistory: ChatMessage[] = []
 ): Promise<string> {
-  if (!genAI) {
-    throw new Error('Gemini API not initialized');
+  if (!OPENROUTER_API_KEY) {
+    throw new Error('OpenRouter API not configured');
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
     // Build context prompt
     const contextPrompt = buildContextPrompt(projectContext);
 
-    // Build conversation history
-    const historyText = conversationHistory
-      .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-      .join('\n');
-
-    // Combine everything
-    const fullPrompt = `You are an AI assistant for a roofing CRM system. You help users manage their roofing projects.
+    // Build conversation history for OpenRouter format
+    const messages = [
+      {
+        role: 'system',
+        content: `You are an AI assistant for a roofing CRM system. You help users manage their roofing projects.
 
 PROJECT CONTEXT:
 ${contextPrompt}
 
-${historyText ? `CONVERSATION HISTORY:\n${historyText}\n` : ''}
-USER QUESTION: ${message}
+Provide helpful, concise responses based on the project context. If the question is about the project, use the context provided. If it's a general question, answer it professionally.`
+      },
+      ...conversationHistory.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      })),
+      {
+        role: 'user',
+        content: message
+      }
+    ];
 
-Provide a helpful, concise response based on the project context. If the question is about the project, use the context provided. If it's a general question, answer it professionally.`;
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        'X-Title': 'TalyaCRM'
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: messages
+      })
+    });
 
-    const result = await model.generateContent(fullPrompt);
-    const response = result.response;
-    return response.text();
+    if (!response.ok) {
+      throw new Error(`OpenRouter API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
   } catch (error) {
-    console.error('Gemini chat error:', error);
+    console.error('OpenRouter chat error:', error);
     throw new Error(`Failed to generate response: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
