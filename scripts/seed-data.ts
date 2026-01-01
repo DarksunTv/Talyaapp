@@ -1,3 +1,5 @@
+import { config } from 'dotenv'
+import { resolve } from 'path'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import {
   generateCustomers,
@@ -8,7 +10,10 @@ import {
   getOrCreateCompany,
 } from './seed-helpers.js'
 
-// Environment variables should be loaded by tsx automatically from .env.local
+// Load environment variables from .env.local
+config({ path: resolve(process.cwd(), '.env.local') })
+
+// Environment variables should be loaded by dotenv from .env.local
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
