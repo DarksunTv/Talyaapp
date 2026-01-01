@@ -2,15 +2,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Users, FolderKanban, FileText, MessageSquare, TrendingUp, Clock } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
 
 export default async function DashboardPage() {
-  // TODO: Fetch real data from Supabase
+  const supabase = await createClient();
+  
+  // Fetch real stats from database
+  const [customersResult, projectsResult, estimatesResult, communicationsResult, recentActivityResult] = await Promise.all([
+    // Total customers
+    supabase.from('crm_customers').select('*', { count: 'exact', head: true }),
+    // Active projects (not completed)
+    supabase.from('crm_projects').select('*', { count: 'exact', head: true }).neq('status', 'completed'),
+    // Pending estimates (draft or sent status)
+    supabase.from('crm_estimates').select('*', { count: 'exact', head: true }).in('status', ['draft', 'sent']),
+    // Recent communications (last 7 days)
+    supabase.from('crm_communications').select('*', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    // Recent activity
+    supabase.from('crm_activity_logs')
+      .select('*, customer:crm_customers(name), project:crm_projects(name)')
+      .order('created_at', { ascending: false })
+      .limit(5)
+  ]);
+
   const stats = {
-    totalCustomers: 0,
-    activeProjects: 0,
-    pendingEstimates: 0,
-    recentCommunications: 0,
+    totalCustomers: customersResult.count || 0,
+    activeProjects: projectsResult.count || 0,
+    pendingEstimates: estimatesResult.count || 0,
+    recentCommunications: communicationsResult.count || 0,
   };
+
+  const recentActivity = recentActivityResult.data || [];
+
+  // Calculate basic metrics
+  const completedProjectsResult = await supabase
+    .from('crm_projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'completed');
+  
+  const totalProjects = (projectsResult.count || 0) + (completedProjectsResult.count || 0);
+  const conversionRate = totalProjects > 0 
+    ? Math.round(((completedProjectsResult.count || 0) / totalProjects) * 100) 
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -122,10 +155,26 @@ export default async function DashboardPage() {
             <CardDescription>Latest updates across your business</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No recent activity</p>
-              <p className="text-sm mt-2">Activity will appear here as you use the system</p>
-            </div>
+            {recentActivity.length > 0 ? (
+              <div className="space-y-3">
+                {recentActivity.map((activity: any) => (
+                  <div key={activity.id} className="flex items-start gap-3 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                    <div>
+                      <p className="font-medium">{formatActivityAction(activity.action)}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {formatRelativeTime(activity.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No recent activity</p>
+                <p className="text-sm mt-2">Activity will appear here as you use the system</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -141,66 +190,95 @@ export default async function DashboardPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Conversion Rate</span>
-                <span className="font-medium">0%</span>
+                <span className="font-medium">{conversionRate}%</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Avg. Project Value</span>
-                <span className="font-medium">$0</span>
+                <span className="text-sm text-muted-foreground">Total Projects</span>
+                <span className="font-medium">{totalProjects}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Response Time</span>
-                <span className="font-medium">-</span>
+                <span className="text-sm text-muted-foreground">Completed</span>
+                <span className="font-medium">{completedProjectsResult.count || 0}</span>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Getting Started */}
-      <Card className="bg-muted">
-        <CardHeader>
-          <CardTitle>Getting Started</CardTitle>
-          <CardDescription>Follow these steps to set up your CRM</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
-              1
+      {/* Getting Started - Only show if no data */}
+      {stats.totalCustomers === 0 && (
+        <Card className="bg-muted">
+          <CardHeader>
+            <CardTitle>Getting Started</CardTitle>
+            <CardDescription>Follow these steps to set up your CRM</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
+                1
+              </div>
+              <div>
+                <p className="font-medium">Add your first customer</p>
+                <p className="text-sm text-muted-foreground">Start building your customer database</p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium">Add your first customer</p>
-              <p className="text-sm text-muted-foreground">Start building your customer database</p>
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
+                2
+              </div>
+              <div>
+                <p className="font-medium">Create a project</p>
+                <p className="text-sm text-muted-foreground">Track your roofing jobs from start to finish</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
-              2
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
+                3
+              </div>
+              <div>
+                <p className="font-medium">Build an estimate</p>
+                <p className="text-sm text-muted-foreground">Create professional estimates with our builder</p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium">Create a project</p>
-              <p className="text-sm text-muted-foreground">Track your roofing jobs from start to finish</p>
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
+                4
+              </div>
+              <div>
+                <p className="font-medium">Configure communications</p>
+                <p className="text-sm text-muted-foreground">Set up Twilio and Vapi for SMS and AI calls</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
-              3
-            </div>
-            <div>
-              <p className="font-medium">Build an estimate</p>
-              <p className="text-sm text-muted-foreground">Create professional estimates with our builder</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center text-sm font-medium">
-              4
-            </div>
-            <div>
-              <p className="font-medium">Configure communications</p>
-              <p className="text-sm text-muted-foreground">Set up Twilio and Vapi for SMS and AI calls</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
+}
+
+// Helper functions
+function formatActivityAction(action: string): string {
+  const actionMap: Record<string, string> = {
+    'customer.created': 'New customer added',
+    'project.created': 'New project started',
+    'estimate.created': 'Estimate generated',
+    'contract.signed': 'Contract signed',
+    'communication.sent': 'Message sent',
+  };
+  return actionMap[action] || action;
+}
+
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
 }
